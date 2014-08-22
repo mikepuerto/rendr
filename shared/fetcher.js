@@ -213,9 +213,40 @@ Fetcher.prototype.isMissingKeys = function(modelData, keys) {
   return false;
 };
 
+Fetcher.prototype.buildCollectionQueryString = function(model, spec, url) {
+  var query, params,
+      newParams = _.size(spec.params) ? spec.params : {},
+      existingParams = url[1] ? 
+        _.chain(url[1].split('&'))
+          .map(function(param) {
+            var p = params.split('=');
+            return [p[0], decodeURIComponent(p[1])];
+          })
+        .object()
+        .value() : {};
+
+  params = _.extend(existingParams, newParams);
+
+  query = _.map(params, function (value, key) {
+    return key + '=' + value;
+  }).join('&');
+
+  return query || false;
+  
+};
+
 Fetcher.prototype.fetchFromApi = function(spec, options, callback) {
   var model = this.getModelOrCollectionForSpec(spec),
-      fetcher = this;
+      fetcher = this,
+      query, url;
+
+  if (isServer && spec.collection) {
+    url = (_.isString(model.url) ? model.url : model.url()).split('?');
+    query = this.buildCollectionQueryString(model, spec, url);
+  }
+
+  if (query) model.url = query ? (url[0] + '?' + query) : url[0];
+
   model.fetch({
     headers: options.headers || {},
     data: spec.params,
